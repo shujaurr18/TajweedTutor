@@ -1,4 +1,4 @@
-package com.rntemplate
+package com.tajweedtutor
 
 import android.app.Application
 import com.facebook.react.PackageList
