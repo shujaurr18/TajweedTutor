@@ -1,5 +1,6 @@
 import firestore from '@react-native-firebase/firestore'
-import { getFirestoreDate } from '../../helper/methods';
+import { getFirestoreDate } from '../helper';
+// import { getFirestoreDate } from '../../helper/methods';
 
 
 

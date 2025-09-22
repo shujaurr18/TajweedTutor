@@ -3,6 +3,8 @@ import Community from './community'
 import Shop from './shop'
 import Account from './account'
 import PostDetail from './postDetail'
+import Qaida from './qaida'
+import QaidaLesson from './qaida/lesson'
 
 
 
@@ -11,5 +13,7 @@ export {
     Community,
     Shop,
     Account,
-    PostDetail
+    PostDetail,
+    Qaida,
+    QaidaLesson
 }

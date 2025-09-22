@@ -52,6 +52,16 @@ export default function BottomTabNavigation() {
                     })}
                 />
                 <BottomTabStack.Screen
+                    name={routes.qaida}
+                    component={App.Qaida}
+                    options={() => ({
+                        tabBarLabel: "Qaida",
+                        tabBarIcon: ({ color, size, focused }) => {
+                            return <TabIcon iconName='book-open' iconType='feather' size={tabIconSize} color={color} focused={focused} />
+                        },
+                    })}
+                />
+                <BottomTabStack.Screen
                     name={routes.shop}
                     component={App.Shop}
                     options={() => ({

@@ -31,6 +31,8 @@ export const routes = {
     shop: 'shop',
     community: 'community',
     postDetail: 'postDetail',
+    qaida: 'qaida',
+    qaidaLesson: 'qaidaLesson',
    
     smartFoodJournal: 'smartFoodJournal',
     sprayLogs: 'sprayLogs',

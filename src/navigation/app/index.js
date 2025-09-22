@@ -13,6 +13,8 @@ const AppNavigation = () => {
         >
              <AppStack.Screen name={routes.bottomTab} component={BottomTab} /> 
             <AppStack.Screen name={routes.postDetail} component={App.PostDetail} />
+            <AppStack.Screen name={routes.qaida} component={App.Qaida} />
+            <AppStack.Screen name={routes.qaidaLesson} component={App.QaidaLesson} />
 
         </AppStack.Navigator>
     )

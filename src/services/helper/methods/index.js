@@ -206,7 +206,7 @@ export const getUserRole = (type) => {
     return { isMaintainWeightRole, isWeightLossRole, isProfessionalDietitianRole }
 }
 
-// export const getFirestoreDate = () => {
-//     return new Date(firestore.Timestamp.now().seconds * 1000)
-// }
+export const getFirestoreDate = () => {
+    return new Date()
+}
 
