@@ -8,44 +8,52 @@ import CommonNavigation from './common';
 import { routes } from '../services';
 import { Splash } from '../screens/auth';
 import { navigationRef } from './rootNavigation';
+import { useAuth } from '../services/contexts/AuthContext';
 
 
 const MainStack = createNativeStackNavigator();
 
 export default function Navigation() {
-    const [loading, setLoading] = useState(true)
+    const { user, loading } = useAuth();
 
-    useEffect(() => {
-        setTimeout(() => {
-            setLoading(false)
-        }, 2500);
-    })
-
-    if (loading)
+    // Show splash screen while checking authentication
+    if (loading) {
         return <Splash />
-    else
-        return (
-            <NavigationContainer
-            ref={navigationRef}
+    }
+
+    return (
+        <NavigationContainer ref={navigationRef}>
+            <MainStack.Navigator
+                screenOptions={{ headerShown: false }}
+                initialRouteName={user ? routes.app : routes.auth}
             >
-                <MainStack.Navigator
-                    screenOptions={{ headerShown: false }}
-                    initialRouteName={routes.auth}
-                >
-                    <MainStack.Screen
-                        name={routes.auth}
-                        component={AuthNavigation}
-                    />
-                    <MainStack.Screen
-                        name={routes.app}
-                        component={AppNavigation}
-                    />
-                    <MainStack.Screen
-                        name={routes.common}
-                        component={CommonNavigation}
-                    />
-                </MainStack.Navigator>
-            </NavigationContainer>
-        );
+                {user ? (
+                    // User is authenticated - show app screens
+                    <>
+                        <MainStack.Screen
+                            name={routes.app}
+                            component={AppNavigation}
+                        />
+                        <MainStack.Screen
+                            name={routes.common}
+                            component={CommonNavigation}
+                        />
+                    </>
+                ) : (
+                    // User is not authenticated - show auth screens
+                    <>
+                        <MainStack.Screen
+                            name={routes.auth}
+                            component={AuthNavigation}
+                        />
+                        <MainStack.Screen
+                            name={routes.common}
+                            component={CommonNavigation}
+                        />
+                    </>
+                )}
+            </MainStack.Navigator>
+        </NavigationContainer>
+    );
 }
 

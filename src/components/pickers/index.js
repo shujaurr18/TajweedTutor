@@ -230,7 +230,7 @@ export function Searchable({ placeholder, error, titleStyle, containerStyle, ico
 
     return (
         <Wrapper>
-            <TextInputs.Underlined
+            <TextInputs.Colored
                 containerStyle={containerStyle}
                 title={title}
                 titleStyle={titleStyle}

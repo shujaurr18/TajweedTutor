@@ -21,6 +21,7 @@ export const routes = {
     splash: 'splash',
     signin: 'signin',
     createAccount: 'createAccount',
+    forgotPassword: 'forgotPassword',
    
 
     //app
