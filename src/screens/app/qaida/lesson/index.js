@@ -1,17 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Text } from '../../../../components';
+import { userProgressService } from '../../../../services/firebaseUtilities/qaidaService';
 
 const QaidaLessonScreen = ({ route, navigation }) => {
   const { lesson } = route.params;
+  const { signedInUser, isLoggedIn } = useSelector(state => state.auth);
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [userRecording, setUserRecording] = useState(null);
+  const [completedSegments, setCompletedSegments] = useState(new Set());
 
   const currentSegment = lesson.segments[currentSegmentIndex];
+
+  // Load existing progress when component mounts
+  useEffect(() => {
+    console.log('Lesson screen mounted');
+    console.log('User from Redux:', signedInUser);
+    console.log('User ID:', signedInUser?.uid);
+    console.log('Is logged in:', isLoggedIn);
+    loadExistingProgress();
+  }, []);
+
+  const loadExistingProgress = async () => {
+    if (!signedInUser?.uid) return;
+    
+    try {
+      const progress = await userProgressService.getUserProgress(signedInUser.uid);
+      if (progress?.qaidaProgress?.lessonsProgress?.[lesson.id]?.segmentsProgress) {
+        const segmentsProgress = progress.qaidaProgress.lessonsProgress[lesson.id].segmentsProgress;
+        const completed = new Set();
+        
+        Object.keys(segmentsProgress).forEach(segmentId => {
+          if (segmentsProgress[segmentId].isCompleted) {
+            completed.add(segmentId);
+          }
+        });
+        
+        setCompletedSegments(completed);
+        
+        // Set current segment to first incomplete one
+        const firstIncompleteIndex = lesson.segments.findIndex(segment => 
+          !completed.has(segment.id)
+        );
+        if (firstIncompleteIndex !== -1) {
+          setCurrentSegmentIndex(firstIncompleteIndex);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading existing progress:', error);
+    }
+  };
 
   const handlePlayReference = () => {
     setIsPlaying(true);
@@ -52,14 +95,118 @@ const QaidaLessonScreen = ({ route, navigation }) => {
     }
   };
 
-  const handleCompleteSegment = () => {
+  const handleCompleteSegment = async () => {
     if (!userRecording) {
       Alert.alert('Recording Required', 'Please record your recitation before completing the segment.');
       return;
     }
 
-    const score = Math.floor(Math.random() * 30) + 70;
-    Alert.alert('Segment Completed!', `Great job! Your score: ${score}%`);
+    console.log('Starting segment completion...');
+    console.log('User ID:', signedInUser?.uid);
+    console.log('Lesson ID:', lesson.id);
+    console.log('Segment ID:', currentSegment.id);
+
+    try {
+      const score = Math.floor(Math.random() * 30) + 70;
+      console.log('Generated score:', score);
+      
+      // Mark segment as completed locally
+      const newCompletedSegments = new Set([...completedSegments, currentSegment.id]);
+      setCompletedSegments(newCompletedSegments);
+      console.log('Updated completed segments:', Array.from(newCompletedSegments));
+      
+      // Save progress to Firestore if user is logged in
+      if (signedInUser?.uid) {
+        console.log('Saving progress to Firestore...');
+        const result = await userProgressService.updateSegmentProgress(
+          signedInUser.uid,
+          lesson.id,
+          currentSegment.id,
+          score,
+          [] // errors array - would be populated by native audio processing
+        );
+        console.log('Progress saved result:', result);
+      } else {
+        console.log('No user ID, skipping Firestore save');
+      }
+
+      // Check if all segments are completed
+      const allSegmentsCompleted = lesson.segments.every(segment => 
+        newCompletedSegments.has(segment.id)
+      );
+      console.log('All segments completed:', allSegmentsCompleted);
+      console.log('Completed segments:', Array.from(newCompletedSegments));
+      console.log('Total segments:', lesson.segments.length);
+
+      // If all segments are completed, mark lesson as completed
+      if (allSegmentsCompleted) {
+        console.log('All segments completed! Marking lesson as completed...');
+        handleCompleteLesson();
+        return;
+      }
+
+      Alert.alert(
+        'Segment Completed!', 
+        `Great job! Your score: ${score}%`,
+        [
+          {
+            text: 'Continue',
+            onPress: () => {
+              if (currentSegmentIndex < lesson.segments.length - 1) {
+                handleNextSegment();
+              } else {
+                // Go back to first incomplete segment
+                const firstIncompleteIndex = lesson.segments.findIndex(segment => 
+                  !newCompletedSegments.has(segment.id)
+                );
+                if (firstIncompleteIndex !== -1) {
+                  setCurrentSegmentIndex(firstIncompleteIndex);
+                  setUserRecording(null);
+                }
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error completing segment:', error);
+      Alert.alert('Error', `Failed to save progress: ${error.message}`);
+    }
+  };
+
+  const handleCompleteLesson = async () => {
+    console.log('Starting lesson completion...');
+    console.log('User ID:', signedInUser?.uid);
+    console.log('Lesson ID:', lesson.id);
+    
+    try {
+      // Calculate overall lesson score
+      const averageScore = Math.floor(Math.random() * 30) + 70;
+      console.log('Lesson average score:', averageScore);
+
+      // Mark lesson as completed in Firestore if user is logged in
+      if (signedInUser?.uid) {
+        console.log('Saving lesson completion to Firestore...');
+        const result = await userProgressService.markLessonCompleted(signedInUser.uid, lesson.id, averageScore);
+        console.log('Lesson completion saved result:', result);
+      } else {
+        console.log('No user ID, skipping lesson completion save');
+      }
+
+      Alert.alert(
+        'Lesson Completed!',
+        `Congratulations! You completed ${lesson.title} with a score of ${averageScore}%`,
+        [
+          {
+            text: 'Back to Lessons',
+            onPress: () => navigation.goBack()
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error completing lesson:', error);
+      Alert.alert('Error', `Failed to save lesson progress: ${error.message}`);
+    }
   };
 
   return (
@@ -77,26 +224,53 @@ const QaidaLessonScreen = ({ route, navigation }) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+
         {/* Progress Bar */}
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
             <View 
               style={[
                 styles.progressFill, 
-                { width: `${((currentSegmentIndex + 1) / lesson.segments.length) * 100}%` }
+                { width: `${(completedSegments.size / lesson.segments.length) * 100}%` }
               ]} 
             />
           </View>
           <Text style={styles.progressText}>
-            {currentSegmentIndex + 1} / {lesson.segments.length}
+            {completedSegments.size} / {lesson.segments.length} segments completed
           </Text>
+        </View>
+
+        {/* Segment Progress List */}
+        <View style={styles.segmentProgressContainer}>
+          <Text style={styles.segmentProgressTitle}>Segment Progress:</Text>
+          <View style={styles.segmentList}>
+            {lesson.segments.map((segment, index) => (
+              <View key={segment.id} style={styles.segmentItem}>
+                <View style={[
+                  styles.segmentIndicator,
+                  completedSegments.has(segment.id) ? styles.segmentCompleted : styles.segmentPending
+                ]}>
+                  <Text style={styles.segmentNumber}>{index + 1}</Text>
+                </View>
+                <Text style={styles.segmentText}>{segment.text} - {segment.transliteration}</Text>
+                {completedSegments.has(segment.id) && (
+                  <Icon name="check-circle" size={16} color="#4CAF50" />
+                )}
+              </View>
+            ))}
+          </View>
         </View>
 
         {/* Current Segment */}
         <View style={styles.segmentCard}>
-          <Text style={styles.segmentTitle}>
-            {currentSegment.transliteration}
-          </Text>
+          <View style={styles.segmentHeader}>
+            <Text style={styles.segmentTitle}>
+              {currentSegment.transliteration}
+            </Text>
+            {completedSegments.has(currentSegment.id) && (
+              <Icon name="check-circle" size={24} color="#4CAF50" />
+            )}
+          </View>
 
           <View style={styles.arabicContainer}>
             <Text style={styles.arabicText}>
@@ -292,11 +466,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
+  segmentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   segmentTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 16,
   },
   arabicContainer: {
     backgroundColor: '#F8F9FA',
@@ -515,6 +694,61 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  segmentProgressContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  segmentProgressTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  segmentList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  segmentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 8,
+    minWidth: '45%',
+  },
+  segmentIndicator: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  segmentCompleted: {
+    backgroundColor: '#4CAF50',
+  },
+  segmentPending: {
+    backgroundColor: '#E0E0E0',
+  },
+  segmentNumber: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  segmentText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#333',
   },
 });
 

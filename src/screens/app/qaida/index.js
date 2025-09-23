@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
+import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 import { qaidaService, userProgressService } from '../../../services/firebaseUtilities/qaidaService';
@@ -19,12 +20,20 @@ const QaidaScreen = ({ navigation }) => {
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userProgress, setUserProgress] = useState(null);
-  const { user } = useSelector(state => state.auth);
+  const [firestoreAvailable, setFirestoreAvailable] = useState(true);
+  const { signedInUser, isLoggedIn } = useSelector(state => state.auth);
 
   useEffect(() => {
     loadLessons();
     loadUserProgress();
   }, []);
+
+  // Reload progress when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadUserProgress();
+    }, [signedInUser?.uid])
+  );
 
   const loadLessons = async () => {
     try {
@@ -40,13 +49,19 @@ const QaidaScreen = ({ navigation }) => {
   };
 
   const loadUserProgress = async () => {
-    if (!user?.uid) return;
+    if (!signedInUser?.uid) return;
     
     try {
-      const progress = await userProgressService.getUserProgress(user.uid);
+      console.log('Loading user progress for:', signedInUser.uid);
+      const progress = await userProgressService.getUserProgress(signedInUser.uid);
+      console.log('Progress loaded:', progress);
       setUserProgress(progress);
+      setFirestoreAvailable(true);
     } catch (error) {
       console.error('Error loading user progress:', error);
+      // Set empty progress to prevent UI issues
+      setUserProgress(null);
+      setFirestoreAvailable(false);
     }
   };
 
@@ -55,9 +70,29 @@ const QaidaScreen = ({ navigation }) => {
     
     const completedLessons = userProgress.qaidaProgress?.completedLessons || [];
     const currentLesson = userProgress.qaidaProgress?.currentLesson;
+    const lessonsProgress = userProgress.qaidaProgress?.lessonsProgress || {};
+    const lessonProgress = lessonsProgress[lessonId];
     
-    if (completedLessons.includes(lessonId)) return 'completed';
-    if (currentLesson === lessonId) return 'current';
+    // Check if lesson is explicitly completed
+    if (completedLessons.includes(lessonId)) {
+      return 'completed';
+    }
+    
+    // Check if lesson has segment progress (user has started working on it)
+    if (lessonProgress && lessonProgress.segmentsProgress) {
+      const segmentsProgress = lessonProgress.segmentsProgress;
+      const completedSegments = Object.values(segmentsProgress).filter(seg => seg.isCompleted);
+      
+      if (completedSegments.length > 0) {
+        return 'current'; // User has completed some segments
+      }
+    }
+    
+    // Check if this is the current lesson
+    if (currentLesson === lessonId) {
+      return 'current';
+    }
+    
     return 'not_started';
   };
 
@@ -157,6 +192,46 @@ const QaidaScreen = ({ navigation }) => {
         <Text style={styles.headerSubtitle}>
           Learn Arabic letters and pronunciation
         </Text>
+        {!firestoreAvailable && (
+          <View style={styles.offlineWarning}>
+            <Text style={styles.offlineText}>
+              ⚠️ Offline mode - Progress will sync when connection is restored
+            </Text>
+          </View>
+        )}
+        
+        {/* Progress Summary */}
+        {signedInUser?.uid && userProgress && (
+          <View style={styles.progressSummary}>
+            <View style={styles.progressStats}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{userProgress.qaidaProgress?.completedLessons?.length || 0}</Text>
+                <Text style={styles.statLabel}>Lessons Completed</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{Object.keys(userProgress.qaidaProgress?.lessonsProgress || {}).length}</Text>
+                <Text style={styles.statLabel}>Lessons Started</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{lessons.length}</Text>
+                <Text style={styles.statLabel}>Total Lessons</Text>
+              </View>
+            </View>
+            <View style={styles.overallProgress}>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { width: `${((userProgress.qaidaProgress?.completedLessons?.length || 0) / lessons.length) * 100}%` }
+                  ]} 
+                />
+              </View>
+              <Text style={styles.progressText}>
+                {Math.round(((userProgress.qaidaProgress?.completedLessons?.length || 0) / lessons.length) * 100)}% Complete
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
 
       <FlatList
@@ -200,6 +275,64 @@ const styles = StyleSheet.create({
     color: '#E3F2FD',
     textAlign: 'center',
     marginTop: 4,
+  },
+  offlineWarning: {
+    backgroundColor: '#FFF3CD',
+    borderColor: '#FFEAA7',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+  },
+  offlineText: {
+    fontSize: 14,
+    color: '#856404',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  progressSummary: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 12,
+  },
+  progressStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 12,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#E3F2FD',
+    marginTop: 2,
+  },
+  overallProgress: {
+    alignItems: 'center',
+  },
+  progressBar: {
+    width: '100%',
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   listContainer: {
     padding: 16,
