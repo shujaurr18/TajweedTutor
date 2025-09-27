@@ -42,16 +42,6 @@ export default function BottomTabNavigation() {
                     })}
                 />
                 <BottomTabStack.Screen
-                    name={routes.community}
-                    component={App.Community}
-                    options={() => ({
-                        tabBarLabel: "Community",
-                        tabBarIcon: ({ color, size, focused }) => {
-                            return <TabIcon iconName='globe' iconType='feather' size={tabIconSize} color={color} focused={focused} />
-                        },
-                    })}
-                />
-                <BottomTabStack.Screen
                     name={routes.qaida}
                     component={App.Qaida}
                     options={() => ({
@@ -62,17 +52,25 @@ export default function BottomTabNavigation() {
                     })}
                 />
                 <BottomTabStack.Screen
-                    name={routes.shop}
-                    component={App.Shop}
+                    name={routes.quran}
+                    component={App.Quran}
                     options={() => ({
-                        tabBarLabel: "Shop",
+                        tabBarLabel: "Quran",
                         tabBarIcon: ({ color, size, focused }) => {
-                            return <TabIcon iconName='shopping-cart' iconType='feather' size={tabIconSize} color={color} focused={focused} />
+                            return <TabIcon iconName='book' iconType='feather' size={tabIconSize} color={color} focused={focused} />
                         },
                     })}
                 />
-
-
+                <BottomTabStack.Screen
+                    name={routes.progress}
+                    component={App.Progress}
+                    options={() => ({
+                        tabBarLabel: "Progress",
+                        tabBarIcon: ({ color, size, focused }) => {
+                            return <TabIcon iconName='trending-up' iconType='feather' size={tabIconSize} color={color} focused={focused} />
+                        },
+                    })}
+                />
                 <BottomTabStack.Screen
                     name={routes.account}
                     component={App.Account}

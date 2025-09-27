@@ -5,6 +5,8 @@ import { useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Text } from '../../../../components';
 import { userProgressService } from '../../../../services/firebaseUtilities/qaidaService';
+import AudioService from '../../../../services/audioService';
+import AudioDataService from '../../../../services/audioDataService';
 
 const QaidaLessonScreen = ({ route, navigation }) => {
   const { lesson } = route.params;
@@ -56,29 +58,91 @@ const QaidaLessonScreen = ({ route, navigation }) => {
     }
   };
 
-  const handlePlayReference = () => {
-    setIsPlaying(true);
-    // Simulate audio playback
-    setTimeout(() => setIsPlaying(false), 2000);
-    Alert.alert('Info', 'Playing reference audio...');
+  const handlePlayReference = async () => {
+    try {
+      setIsPlaying(true);
+      
+      // Get the audio data structure
+      const audioStructure = AudioDataService.getAudioDataStructure();
+      
+      // Map segment ID to audio data ID (only for segments with available audio)
+      const segmentIdMapping = {
+        'seg_1_1': 'alif',    // ا - 0201.mp3
+        'seg_1_2': 'ba',      // ب - 0202.mp3
+        'seg_1_3': 'ta',      // ت - 0203.mp3
+        'seg_1_4': 'tha',     // ث - 0204.mp3
+        'seg_1_5': 'jeem',    // ج - 0205.mp3
+        'seg_1_6': 'haa'      // ح - 0206.mp3
+        // Note: seg_1_7 (خ) and seg_1_8 (د) don't have audio URLs yet
+      };
+      
+      const audioSegmentId = segmentIdMapping[currentSegment.id];
+      if (!audioSegmentId) {
+        throw new Error(`Audio not available for this segment yet. Available segments: Alif (ا), Ba (ب), Ta (ت), Tha (ث), Jeem (ج), Haa (ح)`);
+      }
+      
+      const currentSegmentData = audioStructure.qaida.lessons.lesson_1.segments[audioSegmentId];
+      
+      if (!currentSegmentData) {
+        throw new Error(`Audio data not found for segment: ${audioSegmentId}`);
+      }
+      
+      console.log('Playing audio for segment:', audioSegmentId);
+      console.log('Audio URL:', currentSegmentData.audioUrl);
+      
+      // Download and play the reference audio
+      const audioPath = await AudioDataService.downloadAudioFromSource(
+        currentSegmentData.audioUrl,
+        currentSegmentData.localPath
+      );
+      
+      await AudioService.playReferenceAudio(audioPath);
+      console.log('Reference audio played successfully');
+      
+    } catch (error) {
+      console.error('Error playing reference audio:', error);
+      Alert.alert('Error', `Failed to play reference audio: ${error.message}`);
+    } finally {
+      setIsPlaying(false);
+    }
   };
 
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    // Simulate recording
-    setTimeout(() => {
+  const handleStartRecording = async () => {
+    try {
+      const recordingPath = await AudioService.startRecording();
+      setIsRecording(true);
+      setUserRecording({ path: recordingPath, duration: 0 });
+      console.log('Recording started:', recordingPath);
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      Alert.alert('Error', `Failed to start recording: ${error.message}`);
+    }
+  };
+
+  const handleStopRecording = async () => {
+    try {
+      await AudioService.stopRecording();
       setIsRecording(false);
-      setUserRecording({ path: 'mock_recording.mp3', duration: 2.5 });
-    }, 3000);
+      console.log('Recording stopped');
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      Alert.alert('Error', `Failed to stop recording: ${error.message}`);
+    }
   };
 
-  const handleStopRecording = () => {
-    setIsRecording(false);
-    setUserRecording({ path: 'mock_recording.mp3', duration: 2.5 });
-  };
-
-  const handlePlayRecording = () => {
-    Alert.alert('Info', 'Playing your recording...');
+  const handlePlayRecording = async () => {
+    if (!userRecording?.path) {
+      Alert.alert('Error', 'No recording available to play');
+      return;
+    }
+    
+    try {
+      await AudioService.playRecording(userRecording.path);
+      console.log('User recording played successfully');
+    } catch (error) {
+      console.error('Error playing recording:', error);
+      Alert.alert('Error', `Failed to play recording: ${error.message}`);
+    }
   };
 
   const handleNextSegment = () => {

@@ -82,6 +82,25 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        
+        // Native module configuration
+        ndk {
+            abiFilters "armeabi-v7a", "x86", "arm64-v8a", "x86_64"
+        }
+        
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++17", "-frtti", "-fexceptions"
+                arguments "-DANDROID_STL=c++_shared"
+            }
+        }
+    }
+    
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+            version "3.22.1"
+        }
     }
     
     compileOptions {

@@ -12,9 +12,13 @@ const AppNavigation = () => {
             initialRouteName={routes.home}
         >
              <AppStack.Screen name={routes.bottomTab} component={BottomTab} /> 
-            <AppStack.Screen name={routes.postDetail} component={App.PostDetail} />
-            <AppStack.Screen name={routes.qaida} component={App.Qaida} />
             <AppStack.Screen name={routes.qaidaLesson} component={App.QaidaLesson} />
+            <AppStack.Screen name={routes.quranSurah} component={App.QuranSurah} />
+            <AppStack.Screen name={routes.quranAyah} component={App.QuranAyah} />
+            <AppStack.Screen name={routes.settings} component={App.Settings} />
+            <AppStack.Screen name={routes.subscription} component={App.Subscription} />
+            <AppStack.Screen name={routes.pronunciationTest} component={App.PronunciationTest} />
+            <AppStack.Screen name={routes.pronunciationDemo} component={App.PronunciationDemo} />
 
         </AppStack.Navigator>
     )

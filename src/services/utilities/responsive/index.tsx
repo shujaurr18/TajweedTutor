@@ -10,8 +10,9 @@ export const responsiveHeight = (percentage: number): number => {
   return (percentage * window.height) / 100;
 };
 
-export const responsiveFontSize = (percentage: number): number => {
-  const scaleFactor = Math.min(window.width / 375, window.height / 667); // Use any reference values you prefer
-  const adjustedSize = Math.round(percentage * scaleFactor);
+export const responsiveFontSize = (size: number): number => {
+  // Use a more reasonable scaling approach
+  const scaleFactor = Math.min(window.width / 375, window.height / 667);
+  const adjustedSize = Math.max(size * scaleFactor, size * 0.8); // Ensure minimum readable size
   return PixelRatio.roundToNearestPixel(adjustedSize);
 };

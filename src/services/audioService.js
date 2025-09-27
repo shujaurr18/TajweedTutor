@@ -1,155 +1,54 @@
-import Sound from 'react-native-sound';
 import AudioRecorderPlayer from 'react-native-audio-recorder-player';
+import Sound from 'react-native-sound';
 import { PermissionsAndroid, Platform } from 'react-native';
-import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
-
-// Initialize audio service
-Sound.setCategory('Playback');
-
-const audioRecorderPlayer = new AudioRecorderPlayer();
 
 class AudioService {
   constructor() {
+    this.audioRecorderPlayer = new AudioRecorderPlayer();
     this.currentSound = null;
     this.isRecording = false;
+    this.isPlaying = false;
     this.recordingPath = null;
-    this.recordingDuration = 0;
-    this.recordingTimer = null;
+    
+    // Configure Sound library
+    Sound.setCategory('Playback');
   }
 
   // Permission handling
-  async requestMicrophonePermission() {
-    try {
-      if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
+  async requestAudioPermissions() {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.requestMultiple([
           PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-          {
-            title: 'Microphone Permission',
-            message: 'Tajweed Tutor needs access to your microphone to record your recitation.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          }
+          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+        ]);
+
+        const allPermissionsGranted = Object.values(granted).every(
+          permission => permission === PermissionsAndroid.RESULTS.GRANTED
         );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } else {
-        const result = await request(PERMISSIONS.IOS.MICROPHONE);
-        return result === RESULTS.GRANTED;
+
+        return allPermissionsGranted;
+      } catch (error) {
+        console.error('Error requesting permissions:', error);
+        return false;
       }
-    } catch (error) {
-      console.error('Error requesting microphone permission:', error);
-      return false;
     }
+    return true; // iOS permissions are handled in Info.plist
   }
 
-  // Audio Playback Methods
-  async playAudio(audioPath, onComplete = null, onError = null) {
+  // Recording functionality
+  async startRecording() {
     try {
-      // Stop any currently playing audio
-      this.stopAudio();
-
-      return new Promise((resolve, reject) => {
-        this.currentSound = new Sound(audioPath, Sound.MAIN_BUNDLE, (error) => {
-          if (error) {
-            console.error('Error loading audio:', error);
-            onError && onError(error);
-            reject(error);
-            return;
-          }
-
-          // Play the sound
-          this.currentSound.play((success) => {
-            if (success) {
-              console.log('Audio played successfully');
-              onComplete && onComplete();
-              resolve(true);
-            } else {
-              console.error('Error playing audio');
-              onError && onError('Failed to play audio');
-              reject('Failed to play audio');
-            }
-          });
-        });
-      });
-    } catch (error) {
-      console.error('Error in playAudio:', error);
-      onError && onError(error);
-      throw error;
-    }
-  }
-
-  async playAudioFromUrl(audioUrl, onComplete = null, onError = null) {
-    try {
-      this.stopAudio();
-
-      return new Promise((resolve, reject) => {
-        this.currentSound = new Sound(audioUrl, null, (error) => {
-          if (error) {
-            console.error('Error loading audio from URL:', error);
-            onError && onError(error);
-            reject(error);
-            return;
-          }
-
-          this.currentSound.play((success) => {
-            if (success) {
-              console.log('Audio from URL played successfully');
-              onComplete && onComplete();
-              resolve(true);
-            } else {
-              console.error('Error playing audio from URL');
-              onError && onError('Failed to play audio');
-              reject('Failed to play audio');
-            }
-          });
-        });
-      });
-    } catch (error) {
-      console.error('Error in playAudioFromUrl:', error);
-      onError && onError(error);
-      throw error;
-    }
-  }
-
-  stopAudio() {
-    if (this.currentSound) {
-      this.currentSound.stop();
-      this.currentSound.release();
-      this.currentSound = null;
-    }
-  }
-
-  pauseAudio() {
-    if (this.currentSound) {
-      this.currentSound.pause();
-    }
-  }
-
-  resumeAudio() {
-    if (this.currentSound) {
-      this.currentSound.play();
-    }
-  }
-
-  // Audio Recording Methods
-  async startRecording(onProgress = null) {
-    try {
-      const hasPermission = await this.requestMicrophonePermission();
+      const hasPermission = await this.requestAudioPermissions();
       if (!hasPermission) {
-        throw new Error('Microphone permission denied');
+        throw new Error('Audio recording permission denied');
       }
 
-      const result = await audioRecorderPlayer.startRecorder();
-      this.isRecording = true;
+      const result = await this.audioRecorderPlayer.startRecorder();
       this.recordingPath = result;
-      this.recordingDuration = 0;
-
-      // Start timer for recording duration
-      this.recordingTimer = setInterval(() => {
-        this.recordingDuration += 0.1;
-        onProgress && onProgress(this.recordingDuration);
-      }, 100);
-
+      this.isRecording = true;
+      
       console.log('Recording started:', result);
       return result;
     } catch (error) {
@@ -164,60 +63,188 @@ class AudioService {
         throw new Error('No recording in progress');
       }
 
-      const result = await audioRecorderPlayer.stopRecorder();
+      const result = await this.audioRecorderPlayer.stopRecorder();
       this.isRecording = false;
       
-      // Clear timer
-      if (this.recordingTimer) {
-        clearInterval(this.recordingTimer);
-        this.recordingTimer = null;
-      }
-
       console.log('Recording stopped:', result);
-      return {
-        path: result,
-        duration: this.recordingDuration
-      };
+      return result;
     } catch (error) {
       console.error('Error stopping recording:', error);
       throw error;
     }
   }
 
-  async playRecording(recordingPath, onComplete = null, onError = null) {
+  async pauseRecording() {
     try {
+      if (!this.isRecording) {
+        throw new Error('No recording in progress');
+      }
+
+      await this.audioRecorderPlayer.pauseRecorder();
+      console.log('Recording paused');
+    } catch (error) {
+      console.error('Error pausing recording:', error);
+      throw error;
+    }
+  }
+
+  async resumeRecording() {
+    try {
+      await this.audioRecorderPlayer.resumeRecorder();
+      console.log('Recording resumed');
+    } catch (error) {
+      console.error('Error resuming recording:', error);
+      throw error;
+    }
+  }
+
+  // Playback functionality
+  async playRecording(path) {
+    try {
+      if (this.isPlaying) {
+        await this.stopPlayback();
+      }
+
+      const result = await this.audioRecorderPlayer.startPlayer(path);
+      this.isPlaying = true;
+      
+      console.log('Playing recording:', result);
+      return result;
+    } catch (error) {
+      console.error('Error playing recording:', error);
+      throw error;
+    }
+  }
+
+  async playReferenceAudio(url) {
+    try {
+      if (this.isPlaying) {
+        await this.stopPlayback();
+      }
+
       return new Promise((resolve, reject) => {
-        this.currentSound = new Sound(recordingPath, null, (error) => {
+        this.currentSound = new Sound(url, '', (error) => {
           if (error) {
-            console.error('Error loading recording:', error);
-            onError && onError(error);
+            console.error('Error loading sound:', error);
             reject(error);
             return;
           }
 
           this.currentSound.play((success) => {
+            this.isPlaying = false;
             if (success) {
-              console.log('Recording played successfully');
-              onComplete && onComplete();
-              resolve(true);
+              console.log('Reference audio played successfully');
+              resolve();
             } else {
-              console.error('Error playing recording');
-              onError && onError('Failed to play recording');
-              reject('Failed to play recording');
+              console.error('Error playing reference audio');
+              reject(new Error('Failed to play reference audio'));
             }
           });
+
+          this.isPlaying = true;
         });
       });
     } catch (error) {
-      console.error('Error in playRecording:', error);
-      onError && onError(error);
+      console.error('Error playing reference audio:', error);
       throw error;
     }
   }
 
-  // Utility Methods
+  async stopPlayback() {
+    try {
+      if (this.currentSound) {
+        this.currentSound.stop();
+        this.currentSound.release();
+        this.currentSound = null;
+      }
+
+      if (this.isPlaying) {
+        await this.audioRecorderPlayer.stopPlayer();
+      }
+
+      this.isPlaying = false;
+      console.log('Playback stopped');
+    } catch (error) {
+      console.error('Error stopping playback:', error);
+      throw error;
+    }
+  }
+
+  async pausePlayback() {
+    try {
+      if (this.currentSound) {
+        this.currentSound.pause();
+      } else if (this.isPlaying) {
+        await this.audioRecorderPlayer.pausePlayer();
+      }
+      
+      console.log('Playback paused');
+    } catch (error) {
+      console.error('Error pausing playback:', error);
+      throw error;
+    }
+  }
+
+  async resumePlayback() {
+    try {
+      if (this.currentSound) {
+        this.currentSound.play();
+      } else if (this.isPlaying) {
+        await this.audioRecorderPlayer.resumePlayer();
+      }
+      
+      console.log('Playback resumed');
+    } catch (error) {
+      console.error('Error resuming playback:', error);
+      throw error;
+    }
+  }
+
+  // Audio analysis and processing
+  async analyzeRecording(recordingPath, referencePath) {
+    try {
+      // This would integrate with native modules for audio analysis
+      // For now, return mock data
+      const analysis = {
+        score: Math.floor(Math.random() * 40) + 60, // 60-100
+        errors: [
+          {
+            type: 'Madd',
+            message: 'Mad Asli not elongated properly',
+            position: 15,
+            severity: 'medium',
+            timestamp: 1.5,
+          },
+          {
+            type: 'Makharij',
+            message: 'Articulation point needs adjustment',
+            position: 8,
+            severity: 'low',
+            timestamp: 0.8,
+          },
+        ],
+        suggestions: [
+          'Focus on elongating the Madd letters',
+          'Practice the articulation points of Arabic letters',
+        ],
+        duration: 3.2,
+        confidence: 0.85,
+      };
+
+      return analysis;
+    } catch (error) {
+      console.error('Error analyzing recording:', error);
+      throw error;
+    }
+  }
+
+  // Utility methods
   getRecordingDuration() {
-    return this.recordingDuration;
+    return this.audioRecorderPlayer.mmssss;
+  }
+
+  getPlaybackDuration() {
+    return this.audioRecorderPlayer.mmssss;
   }
 
   isCurrentlyRecording() {
@@ -225,44 +252,58 @@ class AudioService {
   }
 
   isCurrentlyPlaying() {
-    return this.currentSound !== null;
+    return this.isPlaying;
+  }
+
+  getCurrentRecordingPath() {
+    return this.recordingPath;
   }
 
   // Cleanup
-  cleanup() {
-    this.stopAudio();
-    if (this.isRecording) {
-      this.stopRecording();
-    }
-    if (this.recordingTimer) {
-      clearInterval(this.recordingTimer);
-      this.recordingTimer = null;
+  async cleanup() {
+    try {
+      if (this.isRecording) {
+        await this.stopRecording();
+      }
+      
+      if (this.isPlaying) {
+        await this.stopPlayback();
+      }
+
+      if (this.currentSound) {
+        this.currentSound.release();
+        this.currentSound = null;
+      }
+    } catch (error) {
+      console.error('Error during cleanup:', error);
     }
   }
 
-  // Audio format validation
-  isValidAudioFormat(filename) {
-    const validFormats = ['.mp3', '.wav', '.m4a', '.aac'];
-    return validFormats.some(format => filename.toLowerCase().endsWith(format));
+  // Format time for display
+  formatTime(milliseconds) {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
 
-  // Get audio duration (placeholder - would need native implementation for accurate duration)
-  async getAudioDuration(audioPath) {
-    // This would typically require a native module for accurate duration
-    // For now, return a placeholder
-    return new Promise((resolve) => {
-      const sound = new Sound(audioPath, Sound.MAIN_BUNDLE, (error) => {
-        if (error) {
-          resolve(0);
-        } else {
-          resolve(sound.getDuration() || 0);
-        }
-      });
-    });
+  // Get audio file info
+  async getAudioFileInfo(path) {
+    try {
+      // This would use native modules to get file info
+      // For now, return mock data
+      return {
+        duration: 3000, // milliseconds
+        size: 1024 * 100, // bytes
+        format: 'mp3',
+        sampleRate: 44100,
+        channels: 1,
+      };
+    } catch (error) {
+      console.error('Error getting audio file info:', error);
+      throw error;
+    }
   }
 }
 
-// Create singleton instance
-const audioService = new AudioService();
-
-export default audioService;
+export default new AudioService();

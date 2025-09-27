@@ -14,6 +14,7 @@ import * as Loaders from './loaders'
 import * as Modals from './modals'
 import * as Toasts from './toasts'
 import * as Headers from './headers'
+const Header = Headers.Primary
 import * as Chips from './chips'
 import * as StatusBars from './statusBars'
 import * as Pickers from './pickers'
@@ -25,7 +26,7 @@ export *  from './appComponents'
 
 
 export {
-    Wrapper, Text, Spacer,
+    Wrapper, Text, Spacer, Header,
     Buttons, Icons,
     TextInputs, Logos, Cards, Lines, Images,
     CheckBoxes, ScrollViews, Loaders,

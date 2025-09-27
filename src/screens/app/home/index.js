@@ -11,11 +11,19 @@ export default function Home() {
   return (
     <Wrapper isMain isCenter>
       <Wrapper alignItemsCenter>
-        <Text isLargeTitle>Home</Text>
+        <Text isLargeTitle>Tajweed Tutor</Text>
         <Spacer isBasic />
         <Text isMedium isGray
-          onPress={() => navigate(routes.postDetail)}
-        >View Post Details</Text>
+          onPress={() => navigate(routes.pronunciationDemo)}
+        >Test Pronunciation Feature</Text>
+        <Spacer isBasic />
+        <Text isMedium isGray
+          onPress={() => navigate(routes.qaida)}
+        >Start Qaida Lessons</Text>
+        <Spacer isBasic />
+        <Text isMedium isGray
+          onPress={() => navigate(routes.quran)}
+        >Read Quran</Text>
       </Wrapper>
     </Wrapper>
   );

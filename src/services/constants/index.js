@@ -28,17 +28,16 @@ export const routes = {
     bottomTab: 'bottomTab',
     home: 'home',
     account: 'account',
-    shop: 'shop',
-    community: 'community',
-    postDetail: 'postDetail',
     qaida: 'qaida',
     qaidaLesson: 'qaidaLesson',
-   
-    smartFoodJournal: 'smartFoodJournal',
-    sprayLogs: 'sprayLogs',
-    userProfile: 'userProfile',
-    weightLossRanking: 'weightLossRanking',
-
+    quran: 'quran',
+    quranSurah: 'quranSurah',
+    quranAyah: 'quranAyah',
+    progress: 'progress',
+    settings: 'settings',
+    subscription: 'subscription',
+    pronunciationTest: 'pronunciationTest',
+    pronunciationDemo: 'pronunciationDemo',
    
 
     //common
